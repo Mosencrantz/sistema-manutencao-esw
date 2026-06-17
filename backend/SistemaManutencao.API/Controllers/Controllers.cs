@@ -1,6 +1,7 @@
 // MVP: [Authorize] removido — sem autenticação
-// CORREÇÃO: "admin" substituído por ObjectId válido (24 hex chars)
+using System.Security.Claims;// CORREÇÃO: "admin" substituído por ObjectId válido (24 hex chars)
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using SistemaManutencao.API.DTOs;
 using SistemaManutencao.API.Services;
 
@@ -20,19 +21,37 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     public AuthController(IAuthService authService) => _authService = authService;
+    
+[HttpPost("login")]
+public async Task<IActionResult> Login([FromBody] LoginRequestDto dto)
+{
+    if (dto.Email == "admin@sistema.com" &&
+        dto.Senha == "Admin@123")
+    {
+        var result = await _authService.LoginAsync(dto);
+        return Ok(result);
+    }
 
-    [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequestDto dto)
-        => Ok(await _authService.LoginAsync(dto));
+    return Unauthorized("Credenciais inválidas");
+}
 
+[Authorize]
     [HttpGet("me")]
     public IActionResult Me()
-        => Ok(new { id = Mvp.AdminId, perfil = "Administrador" });
+    {
+        return Ok(new
+        {
+            id = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+            perfil = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
+            nome = User.Identity?.Name
+        });
+    }
 }
 
 // ─── Usuario Controller ───────────────────────────────────────────────────────
 
 [ApiController]
+[Authorize]
 [Route("api/usuarios")]
 public class UsuarioController : ControllerBase
 {
@@ -74,6 +93,7 @@ public class UsuarioController : ControllerBase
 // ─── Equipamento Controller ───────────────────────────────────────────────────
 
 [ApiController]
+[Authorize]
 [Route("api/equipamentos")]
 public class EquipamentoController : ControllerBase
 {
@@ -112,6 +132,7 @@ public class EquipamentoController : ControllerBase
 // ─── OrdemServico Controller ──────────────────────────────────────────────────
 
 [ApiController]
+[Authorize]
 [Route("api/ordens")]
 public class OrdemServicoController : ControllerBase
 {
@@ -138,9 +159,8 @@ public class OrdemServicoController : ControllerBase
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] OrdemServicoCreateDto dto)
-    {
-        // CORREÇÃO: usa ObjectId válido em vez de "admin"
-        var created = await _service.CreateAsync(dto, Mvp.AdminId);
+    {var created = await _service.CreateAsync(dto, Mvp.AdminId);
+
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
@@ -169,6 +189,7 @@ public record AtribuirTecnicoDto(string TecnicoId);
 // ─── Diagnostico Controller ───────────────────────────────────────────────────
 
 [ApiController]
+[Authorize]
 [Route("api/diagnosticos")]
 public class DiagnosticoController : ControllerBase
 {
@@ -191,6 +212,7 @@ public class DiagnosticoController : ControllerBase
 // ─── Arquivo Controller ───────────────────────────────────────────────────────
 
 [ApiController]
+[Authorize]
 [Route("api/arquivos")]
 public class ArquivoController : ControllerBase
 {

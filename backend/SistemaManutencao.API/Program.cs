@@ -115,21 +115,19 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var usuarioService = scope.ServiceProvider.GetRequiredService<IUsuarioService>();
-    await usuarioService.SeedAdminAsync();
+    //await usuarioService.SeedAdminAsync();
 }
 
 // ─── Middleware pipeline ──────────────────────────────────────────────────────
 app.UseMiddleware<ExceptionMiddleware>();
 
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sistema Manutenção v1");
-        c.RoutePrefix = "swagger";
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sistema Manutenção v1");
+    c.RoutePrefix = "swagger";
+});
 
 app.UseStaticFiles();
 app.UseCors("FrontendPolicy");
