@@ -3,9 +3,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 // MVP: sem guards de autenticação — todas as rotas abertas
 const routes = [
   {
-    // Login redireciona direto para o dashboard
     path: '/login',
-    redirect: '/dashboard'
+    name: 'login',
+    component: () => import('@/views/LoginView.vue')
   },
   {
     path: '/consulta',
@@ -16,7 +16,7 @@ const routes = [
     path: '/',
     component: () => import('@/components/layout/AppLayout.vue'),
     children: [
-      { path: '',          redirect: '/dashboard' },
+      { path: '', redirect: '/login' },
       { path: 'dashboard', name: 'dashboard',    component: () => import('@/views/DashboardView.vue') },
       { path: 'clientes',  name: 'clientes',     component: () => import('@/views/ClientesView.vue') },
       { path: 'equipamentos', name: 'equipamentos', component: () => import('@/views/EquipamentosView.vue') },
@@ -25,7 +25,7 @@ const routes = [
       { path: 'usuarios',  name: 'usuarios',      component: () => import('@/views/UsuariosView.vue') }
     ]
   },
-  { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
+  { path: '/:pathMatch(.*)*', redirect: '/login' }
 ]
 
 export default createRouter({
