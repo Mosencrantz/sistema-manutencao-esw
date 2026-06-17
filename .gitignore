@@ -1,0 +1,35 @@
+# ─── .NET Backend ────────────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.DotSettings.user
+appsettings.Development.json
+
+# Pasta de uploads gerados em tempo de execução
+**/wwwroot/uploads/
+
+# ─── Vue.js / Node Frontend ──────────────────────────────────────────────────
+node_modules/
+dist/
+.cache/
+
+# Variáveis de ambiente — NUNCA sobe (tem senhas!)
+.env
+.env.local
+.env.*.local
+
+# ─── IDEs ────────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/settings.json
+
+# ─── Sistema Operacional ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Docker ──────────────────────────────────────────────────────────────────
+# (mantém o docker-compose.yml mas ignora dados gerados)
+**/docker-volumes/
