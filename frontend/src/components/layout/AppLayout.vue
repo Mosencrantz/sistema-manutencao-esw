@@ -7,6 +7,7 @@
       permanent
       color="#1E2937"
       class="sidebar"
+      @click="rail && (rail = false)"
     >
       <!-- Logo -->
       <v-list-item
@@ -21,7 +22,7 @@
             :icon="rail ? 'mdi-chevron-right' : 'mdi-chevron-left'"
             variant="text"
             color="white"
-            @click="rail = !rail"
+            @click.stop="rail = !rail"
           />
         </template>
       </v-list-item>
@@ -112,14 +113,14 @@ const drawer = ref(true)
 const rail   = ref(false)
 
 const navItems = [
-  { to: '/dashboard',   icon: 'mdi-view-dashboard-outline', title: 'Dashboard' },
-  { to: '/kanban',      icon: 'mdi-view-column-outline',    title: 'Kanban' },
-  { to: '/ordens',      icon: 'mdi-clipboard-list-outline', title: 'Ordens de Serviço' },
-  { to: '/clientes',    icon: 'mdi-account-group-outline',  title: 'Clientes',
+  { to: '/dashboard',    icon: 'mdi-view-dashboard-outline', title: 'Dashboard' },
+  { to: '/kanban',       icon: 'mdi-view-column-outline',    title: 'Kanban' },
+  { to: '/ordens',       icon: 'mdi-clipboard-list-outline', title: 'Ordens de Serviço' },
+  { to: '/clientes',     icon: 'mdi-account-group-outline',  title: 'Clientes',
     roles: ['Funcionario', 'Administrador', 'Tecnico'] },
-  { to: '/equipamentos',icon: 'mdi-desktop-classic',        title: 'Equipamentos',
+  { to: '/equipamentos', icon: 'mdi-desktop-classic',        title: 'Equipamentos',
     roles: ['Funcionario', 'Administrador', 'Tecnico'] },
-  { to: '/usuarios',    icon: 'mdi-account-cog-outline',    title: 'Usuários',
+  { to: '/usuarios',     icon: 'mdi-account-cog-outline',    title: 'Usuários',
     roles: ['Administrador'] },
 ]
 
