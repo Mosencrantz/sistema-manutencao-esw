@@ -22,8 +22,8 @@ Sistema web para gerenciamento de ordens de serviço de manutenção de computad
 
 ### 1. Clonar o repositório
 ```bash
-git clone https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git
-cd sistema-manutencao
+git clone https://github.com/Mosencrantz/sistema-manutencao-esw
+cd sistema-manutencao-esw
 ```
 
 ### 2. Configurar o banco de dados
@@ -43,7 +43,7 @@ docker run -d --name mongodb -p 27017:27017 mongo:7
 ```bash
 cd backend/SistemaManutencao.API
 
-# Crie o arquivo de configuração local (não sobe para o git)
+# Crie o arquivo de configuração local 
 # Copie o conteúdo abaixo e ajuste com sua connection string
 ```
 
@@ -77,7 +77,7 @@ Frontend disponível em: `http://localhost:5173`
 
 ---
 
-## Credenciais padrão
+## Credenciais padrão (TEMPORÁRIO)
 Na primeira execução, o sistema cria automaticamente:
 
 | Campo | Valor |
