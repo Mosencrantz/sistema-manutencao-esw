@@ -5,6 +5,8 @@ obj/
 *.suo
 .vs/
 *.DotSettings.user
+
+# Contém credenciais reais (connection string + chave JWT) — NUNCA versionar
 appsettings.Development.json
 
 # Pasta de uploads gerados em tempo de execução
@@ -31,5 +33,4 @@ Thumbs.db
 desktop.ini
 
 # ─── Docker ──────────────────────────────────────────────────────────────────
-# (mantém o docker-compose.yml mas ignora dados gerados)
 **/docker-volumes/

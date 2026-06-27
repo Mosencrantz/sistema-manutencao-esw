@@ -9,7 +9,7 @@
             <v-icon size="56" color="primary">mdi-wrench-cog</v-icon>
             <h1 class="text-h5 font-weight-bold mt-3">Sistema de Manutenção</h1>
             <p class="text-body-2 text-medium-emphasis mt-1">
-              Universidade Federal de Sergipe
+              Gestão de Ordens de Serviço
             </p>
           </div>
 
@@ -74,21 +74,33 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-const router  = useRouter()
-const auth    = useAuthStore()
-const formRef = ref(null)
-const email   = ref('')
-const senha   = ref('')
+const router   = useRouter()
+const route    = useRoute()
+const auth     = useAuthStore()
+const formRef  = ref(null)
+const email    = ref('')
+const senha    = ref('')
 const showPass = ref(false)
 
 const r = {
   required: v => !!v || 'Campo obrigatório.',
   email: v => /.+@.+\..+/.test(v) || 'E-mail inválido.'
 }
+
+// DIAGNÓSTICO: se o interceptor da API nos jogou de volta pra cá após um 401,
+// o motivo exato vem na query string ?erro=... — mostramos isso na tela
+// em vez de deixar o usuário sem nenhuma explicação.
+onMounted(() => {
+  if (route.query.erro) {
+    auth.error = decodeURIComponent(route.query.erro)
+    // limpa a query da URL sem recarregar a página, pra não ficar feio se atualizar
+    router.replace({ path: '/login' })
+  }
+})
 
 async function submit() {
   const { valid } = await formRef.value.validate()

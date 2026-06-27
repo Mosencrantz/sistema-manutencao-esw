@@ -76,6 +76,12 @@ public class UsuarioService : IUsuarioService
     {
         var u = await _repo.GetByIdAsync(id)
             ?? throw new KeyNotFoundException($"Usuário {id} não encontrado.");
+
+        // Defesa em profundidade: administradores não podem ser removidos do sistema
+        // (o frontend já bloqueia isso na UI, mas o backend também precisa garantir)
+        if (u.Perfil == "Administrador")
+            throw new InvalidOperationException("Administradores não podem ser removidos do sistema.");
+
         u.Ativo = false;
         await _repo.UpdateAsync(id, u);
     }
@@ -88,16 +94,23 @@ public class UsuarioService : IUsuarioService
         await _repo.UpdateAsync(id, u);
     }
 
-    // Cria o administrador padrão se não houver nenhum usuário no banco
+    // Cria o administrador padrão se ele ainda não existir.
+    // CORREÇÃO: antes verificava "se o banco tem qualquer usuário" — isso fazia
+    // o seed nunca rodar em bancos compartilhados que já têm clientes/funcionários
+    // cadastrados (como o banco usado pela equipe). Agora verifica especificamente
+    // pelo e-mail do admin, garantindo que ele sempre exista, independente de quantos
+    // outros usuários já estejam no banco.
     public async Task SeedAdminAsync()
     {
-        var todos = await _repo.GetAllAsync();
-        if (todos.Count > 0) return;
+        const string adminEmail = "admin@sistema.com";
+
+        var existente = await _repo.GetByEmailAsync(adminEmail);
+        if (existente is not null) return; // admin já existe — não faz nada
 
         var admin = new Administrador
         {
             Nome = "Administrador",
-            Email = "admin@sistema.com",
+            Email = adminEmail,
             Senha = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
             Telefone = ""
         };

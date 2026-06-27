@@ -1,20 +1,44 @@
 import axios from 'axios'
 
-// MVP: sem interceptors de autenticação
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   timeout: 15000
 })
 
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 api.interceptors.response.use(
   response => response,
   error => {
+    const isLoginRoute = error.config?.url?.includes('/auth/login')
+    const status  = error.response?.status
+    const url     = error.config?.url
+
     const message =
       error.response?.data?.erro ||
       error.response?.data?.title ||
       error.message ||
       'Erro desconhecido'
-    console.error('[API Error]', error.config?.url, '→', message)
+
+    // DIAGNÓSTICO: sempre loga o endpoint exato e o erro completo no console
+    console.error('[API Error]', status, url, '→', message, error.response?.data)
+
+    if (status === 401 && !isLoginRoute) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('usuario')
+
+      // CORREÇÃO: em vez de redirecionar silenciosamente, leva o motivo exato
+      // do erro via query string para a tela de login conseguir exibir
+      const detalhe = `Falha ao acessar ${url} (HTTP ${status}): ${message}`
+      window.location.href = `/login?erro=${encodeURIComponent(detalhe)}`
+    }
+
     return Promise.reject(new Error(message))
   }
 )
@@ -36,25 +60,25 @@ export const usuariosApi = {
 }
 
 export const equipamentosApi = {
-  getAll:      ()           => api.get('/equipamentos'),
-  getById:     id           => api.get(`/equipamentos/${id}`),
-  getByCliente: clienteId   => api.get(`/equipamentos/cliente/${clienteId}`),
-  create:      dto          => api.post('/equipamentos', dto),
-  update:      (id, dto)    => api.put(`/equipamentos/${id}`, dto),
-  delete:      id           => api.delete(`/equipamentos/${id}`)
+  getAll:       ()         => api.get('/equipamentos'),
+  getById:      id         => api.get(`/equipamentos/${id}`),
+  getByCliente: clienteId  => api.get(`/equipamentos/cliente/${clienteId}`),
+  create:       dto        => api.post('/equipamentos', dto),
+  update:       (id, dto)  => api.put(`/equipamentos/${id}`, dto),
+  delete:       id         => api.delete(`/equipamentos/${id}`)
 }
 
 export const ordensApi = {
-  getAll:          ()           => api.get('/ordens'),
-  getById:         id           => api.get(`/ordens/${id}`),
-  getByNumero:     numero       => api.get(`/ordens/consulta/${numero}`),
-  getByCliente:    clienteId    => api.get(`/ordens/cliente/${clienteId}`),
-  getByStatus:     status       => api.get(`/ordens/status/${status}`),
-  create:          dto          => api.post('/ordens', dto),
-  atualizarStatus: (id, dto)    => api.patch(`/ordens/${id}/status`, dto),
-  adicionarPeca:   (id, peca)   => api.post(`/ordens/${id}/pecas`, peca),
+  getAll:          ()              => api.get('/ordens'),
+  getById:         id              => api.get(`/ordens/${id}`),
+  getByNumero:     numero          => api.get(`/ordens/consulta/${numero}`),
+  getByCliente:    clienteId       => api.get(`/ordens/cliente/${clienteId}`),
+  getByStatus:     status          => api.get(`/ordens/status/${status}`),
+  create:          dto             => api.post('/ordens', dto),
+  atualizarStatus: (id, dto)       => api.patch(`/ordens/${id}/status`, dto),
+  adicionarPeca:   (id, peca)      => api.post(`/ordens/${id}/pecas`, peca),
   atribuirTecnico: (id, tecnicoId) => api.patch(`/ordens/${id}/tecnico`, { tecnicoId }),
-  getHistorico:    id           => api.get(`/ordens/${id}/historico`)
+  getHistorico:    id              => api.get(`/ordens/${id}/historico`)
 }
 
 export const diagnosticosApi = {
