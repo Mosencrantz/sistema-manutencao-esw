@@ -12,10 +12,6 @@ using SistemaManutencao.API.Settings;
 var builder = WebApplication.CreateBuilder(args);
 
 // ─── Porta dinâmica para plataformas de nuvem ────────────────────────────────
-// Render, Railway e outras plataformas injetam a variável de ambiente PORT
-// com a porta que o app DEVE escutar. Localmente essa variável não existe,
-// então o comportamento de sempre (porta 5000, via launchSettings.json)
-// continua funcionando sem nenhuma mudança.
 var cloudPort = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(cloudPort))
 {
@@ -30,8 +26,33 @@ builder.Services.Configure<MongoDbSettings>(mongoSettings);
 builder.Services.Configure<JwtSettings>(jwtSettings);
 
 // ─── MongoDB ──────────────────────────────────────────────────────────────────
+// CORREÇÃO: em vez de só passar a connection string direto pro MongoClient,
+// construímos um MongoClientSettings explícito para poder desativar a
+// checagem de REVOGAÇÃO do certificado TLS.
+//
+// O que aconteceu: ao conectar no MongoDB Atlas, o driver tenta validar se
+// o certificado do servidor foi revogado, consultando um servidor externo
+// (OCSP/CRL) da autoridade certificadora. Em redes restritas de plataformas
+// de nuvem (como o plano gratuito do Render), essa consulta de saída pode
+// ser bloqueada — e isso faz o handshake TLS inteiro falhar com
+// SslStream.AuthenticateAsClient, mesmo que o certificado seja válido.
+//
+// Desativar CheckCertificateRevocation NÃO desativa a criptografia nem a
+// validação de autenticidade do certificado — a conexão continua sendo
+// TLS normal, validada. Só deixa de fazer essa checagem extra específica,
+// que é a que está sendo bloqueada pela rede.
 builder.Services.AddSingleton<IMongoClient>(_ =>
-    new MongoClient(mongoSettings["ConnectionString"]));
+{
+    var mongoUrl = new MongoUrl(mongoSettings["ConnectionString"]);
+    var clientSettings = MongoClientSettings.FromUrl(mongoUrl);
+
+    clientSettings.SslSettings = new SslSettings
+    {
+        CheckCertificateRevocation = false
+    };
+
+    return new MongoClient(clientSettings);
+});
 
 builder.Services.AddSingleton<IMongoDatabase>(sp =>
     sp.GetRequiredService<IMongoClient>()
@@ -82,11 +103,6 @@ builder.Services
 builder.Services.AddAuthorization();
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-// CORREÇÃO PARA DEPLOY: a lista de origens permitidas agora vem da configuração
-// (appsettings.json ou variável de ambiente "AllowedOrigins__0", "AllowedOrigins__1"...)
-// em vez de ficar fixa no código. Isso permite adicionar o domínio do frontend
-// em produção (Vercel) só configurando a plataforma de deploy, sem precisar
-// mudar e recompilar o código toda vez que o domínio mudar.
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
     ?? new[] { "http://localhost:5173", "http://localhost:3000" };
 
@@ -153,8 +169,6 @@ using (var scope = app.Services.CreateScope())
 // ─── Middleware pipeline ──────────────────────────────────────────────────────
 app.UseMiddleware<ExceptionMiddleware>();
 
-// Swagger disponível também em produção, é útil pra testar a API já no ar.
-// Se quiser desativar em produção depois, troque por: if (app.Environment.IsDevelopment())
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {

@@ -5,28 +5,22 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>SistemaManutencao.API</RootNamespace>
+
+    <!--
+      CORREÇÃO PARA INSTÂNCIAS PEQUENAS (ex: plano gratuito do Render):
+      por padrão, ASP.NET Core usa o "Server GC" (coletor de lixo voltado
+      para servidores com bastante memória/CPU). Em instâncias muito
+      restritas (512 MB de RAM), esse modo pode causar travamentos
+      (exit code 139 / segmentation fault) já na inicialização.
+      O "Workstation GC" usa bem menos memória e é mais adequado aqui.
+    -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
-    <!--
-      CORREÇÃO: removida a referência direta e explícita ao pacote
-      Microsoft.IdentityModel.Tokens (estava fixada em "8.0.2").
-
-      O pacote Microsoft.AspNetCore.Authentication.JwtBearer já traz esse
-      pacote como dependência transitiva, na versão exata que ele espera.
-      Ao fixar manualmente uma versão diferente por cima, o NuGet pode
-      acabar resolvendo uma combinação incompatível entre as duas
-      bibliotecas — o que pode causar exatamente o tipo de comportamento
-      visto: o token parece perfeitamente válido nos nossos próprios
-      testes, mas o validador interno (rodando com a versão "errada" da
-      biblioteca) o rejeita como malformado.
-
-      Deixar o NuGet resolver essa dependência sozinho, sem fixação manual,
-      é a forma mais segura de garantir que as duas bibliotecas estejam
-      em versões compatíveis entre si.
-    -->
     <PackageReference Include="MongoDB.Driver" Version="3.9.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.1" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.17" />
