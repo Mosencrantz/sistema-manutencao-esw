@@ -11,6 +11,17 @@ using SistemaManutencao.API.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ─── Porta dinâmica para plataformas de nuvem ────────────────────────────────
+// Render, Railway e outras plataformas injetam a variável de ambiente PORT
+// com a porta que o app DEVE escutar. Localmente essa variável não existe,
+// então o comportamento de sempre (porta 5000, via launchSettings.json)
+// continua funcionando sem nenhuma mudança.
+var cloudPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(cloudPort))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{cloudPort}");
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 var mongoSettings = builder.Configuration.GetSection("MongoDbSettings");
 var jwtSettings   = builder.Configuration.GetSection("JwtSettings");
@@ -49,7 +60,7 @@ if (string.IsNullOrWhiteSpace(secretKey) || secretKey.Length < 32)
 {
     throw new InvalidOperationException(
         "JwtSettings:SecretKey está ausente ou tem menos de 32 caracteres. " +
-        "Verifique appsettings.json e appsettings.Development.json.");
+        "Verifique appsettings.json e as variáveis de ambiente configuradas na plataforma de deploy.");
 }
 
 builder.Services
@@ -66,92 +77,23 @@ builder.Services
                                            Encoding.UTF8.GetBytes(secretKey)),
             ClockSkew                = TimeSpan.FromMinutes(5)
         };
-
-        // DIAGNÓSTICO BYTE-A-BYTE: o token TEM 2 pontos (confirmado), mas a
-        // validação do .NET ainda rejeita como malformado. Isso normalmente
-        // significa que existe algum caractere fora do alfabeto Base64URL
-        // permitido (A-Z, a-z, 0-9, -, _) escondido em algum lugar do token
-        // — um espaço, um "+", uma quebra de linha, etc. Esse bloco varre
-        // caractere por caractere e aponta exatamente onde e qual é.
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                var path = context.Request.Path;
-                var method = context.Request.Method;
-                var authHeader = context.Request.Headers["Authorization"].ToString();
-
-                Console.WriteLine($"[JWT] ── {method} {path}");
-
-                if (string.IsNullOrEmpty(authHeader))
-                {
-                    Console.WriteLine($"[JWT]    sem header Authorization.");
-                    return Task.CompletedTask;
-                }
-
-                var rawToken = authHeader.StartsWith("Bearer ")
-                    ? authHeader["Bearer ".Length..].Trim()
-                    : authHeader;
-
-                var parts = rawToken.Split('.');
-                Console.WriteLine($"[JWT]    {rawToken.Length} chars totais — Split('.') gerou {parts.Length} parte(s):");
-                for (int i = 0; i < parts.Length; i++)
-                    Console.WriteLine($"[JWT]      parte[{i}]: {parts[i].Length} chars");
-
-                // Alfabeto Base64URL válido para cada segmento de um JWT
-                var invalidos = new List<string>();
-                for (int i = 0; i < rawToken.Length; i++)
-                {
-                    var c = rawToken[i];
-                    bool valido = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-                                  (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.';
-                    if (!valido)
-                        invalidos.Add($"posição {i}: '{c}' (U+{(int)c:X4})");
-                }
-
-                if (invalidos.Count > 0)
-                {
-                    Console.WriteLine($"[JWT]    ⚠⚠⚠ CARACTERES INVÁLIDOS ENCONTRADOS ({invalidos.Count}):");
-                    foreach (var inv in invalidos.Take(10))
-                        Console.WriteLine($"[JWT]        {inv}");
-                }
-                else
-                {
-                    Console.WriteLine($"[JWT]    ✓ todos os caracteres pertencem ao alfabeto Base64URL — nenhuma sujeira encontrada.");
-                }
-
-                return Task.CompletedTask;
-            },
-
-            OnTokenValidated = context =>
-            {
-                Console.WriteLine($"[JWT] ✓✓✓ VALIDADO em {context.Request.Method} {context.Request.Path}");
-                return Task.CompletedTask;
-            },
-
-            OnAuthenticationFailed = context =>
-            {
-                Console.WriteLine($"[JWT] ✗✗✗ FALHA em {context.Request.Method} {context.Request.Path}: " +
-                    $"{context.Exception.GetType().Name} — {context.Exception.Message}");
-                return Task.CompletedTask;
-            },
-
-            OnChallenge = context =>
-            {
-                Console.WriteLine($"[JWT] ⚠ CHALLENGE 401 em {context.Request.Method} {context.Request.Path}. " +
-                    $"Erro: {context.Error}, Descrição: {context.ErrorDescription}");
-                return Task.CompletedTask;
-            }
-        };
     });
 
 builder.Services.AddAuthorization();
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
+// CORREÇÃO PARA DEPLOY: a lista de origens permitidas agora vem da configuração
+// (appsettings.json ou variável de ambiente "AllowedOrigins__0", "AllowedOrigins__1"...)
+// em vez de ficar fixa no código. Isso permite adicionar o domínio do frontend
+// em produção (Vercel) só configurando a plataforma de deploy, sem precisar
+// mudar e recompilar o código toda vez que o domínio mudar.
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:5173", "http://localhost:3000" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials());
@@ -211,15 +153,14 @@ using (var scope = app.Services.CreateScope())
 // ─── Middleware pipeline ──────────────────────────────────────────────────────
 app.UseMiddleware<ExceptionMiddleware>();
 
-if (app.Environment.IsDevelopment())
+// Swagger disponível também em produção, é útil pra testar a API já no ar.
+// Se quiser desativar em produção depois, troque por: if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sistema Manutenção v1");
-        c.RoutePrefix = "swagger";
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sistema Manutenção v1");
+    c.RoutePrefix = "swagger";
+});
 
 app.UseStaticFiles();
 app.UseCors("FrontendPolicy");
